@@ -1301,6 +1301,122 @@ static void vgpu_sw_cmd_move_cursor_handler(virtio_gpu_state_t *vgpu,
     *plen = 0;
 }
 
+#define VGPU_SW_VIRGL_CAPSET_ID 1        /* VIRTIO_GPU_CAPSET_VIRGL */
+#define VGPU_SW_VIRGL_CAPSET_MAX_VERSION 1
+#define VGPU_SW_VIRGL_CAPSET_MAX_SIZE 308 /* sizeof(struct virgl_caps_v1) */
+
+static void vgpu_sw_cmd_get_capset_info_handler(virtio_gpu_state_t *vgpu,
+                                                struct virtq_desc *vq_desc,
+                                                uint32_t *plen)
+{
+    const struct virtq_desc *response_desc = virtio_gpu_get_response_desc(
+        vq_desc, sizeof(struct virtio_gpu_resp_capset_info));
+    if (!response_desc) {
+        virtio_gpu_set_fail(vgpu);
+        *plen = 0;
+        return;
+    }
+
+    struct virtio_gpu_get_capset_info *request = virtio_gpu_get_request(
+        vgpu, vq_desc, sizeof(struct virtio_gpu_get_capset_info));
+    if (!request) {
+        virtio_gpu_set_fail(vgpu);
+        *plen = 0;
+        return;
+    }
+
+    /* We advertise exactly one capset, so only index 0 is valid. */
+    if (request->capset_index != 0) {
+        fprintf(stderr,
+                VIRTIO_GPU_LOG_PREFIX "%s(): invalid capset index %u\n",
+                __func__, request->capset_index);
+        *plen = virtio_gpu_write_ctrl_response(
+            vgpu, &request->hdr, response_desc,
+            VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER);
+        if (!*plen)
+            virtio_gpu_set_fail(vgpu);
+        return;
+    }
+
+    struct virtio_gpu_resp_capset_info *response =
+        virtio_gpu_mem_guest_to_host(vgpu, response_desc->addr,
+                                     sizeof(*response));
+    if (!response) {
+        virtio_gpu_set_fail(vgpu);
+        *plen = 0;
+        return;
+    }
+
+    memset(response, 0, sizeof(*response));
+    response->hdr.type = VIRTIO_GPU_RESP_OK_CAPSET_INFO;
+    response->capset_id = VGPU_SW_VIRGL_CAPSET_ID;
+    response->capset_max_version = VGPU_SW_VIRGL_CAPSET_MAX_VERSION;
+    response->capset_max_size = VGPU_SW_VIRGL_CAPSET_MAX_SIZE;
+
+    if (request->hdr.flags & VIRTIO_GPU_FLAG_FENCE) {
+        response->hdr.flags = VIRTIO_GPU_FLAG_FENCE;
+        response->hdr.fence_id = request->hdr.fence_id;
+    }
+
+    *plen = sizeof(*response);
+}
+
+static void vgpu_sw_cmd_get_capset_handler(virtio_gpu_state_t *vgpu,
+                                           struct virtq_desc *vq_desc,
+                                           uint32_t *plen)
+{
+    size_t resp_size =
+        sizeof(struct virtio_gpu_resp_capset) + VGPU_SW_VIRGL_CAPSET_MAX_SIZE;
+
+    const struct virtq_desc *response_desc =
+        virtio_gpu_get_response_desc(vq_desc, resp_size);
+    if (!response_desc) {
+        virtio_gpu_set_fail(vgpu);
+        *plen = 0;
+        return;
+    }
+
+    struct virtio_gpu_get_capset *request = virtio_gpu_get_request(
+        vgpu, vq_desc, sizeof(struct virtio_gpu_get_capset));
+    if (!request) {
+        virtio_gpu_set_fail(vgpu);
+        *plen = 0;
+        return;
+    }
+
+    if (request->capset_id != VGPU_SW_VIRGL_CAPSET_ID) {
+        fprintf(stderr,
+                VIRTIO_GPU_LOG_PREFIX "%s(): invalid capset id %u\n",
+                __func__, request->capset_id);
+        *plen = virtio_gpu_write_ctrl_response(
+            vgpu, &request->hdr, response_desc,
+            VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER);
+        if (!*plen)
+            virtio_gpu_set_fail(vgpu);
+        return;
+    }
+
+    struct virtio_gpu_resp_capset *response =
+        virtio_gpu_mem_guest_to_host(vgpu, response_desc->addr, resp_size);
+    if (!response) {
+        virtio_gpu_set_fail(vgpu);
+        *plen = 0;
+        return;
+    }
+
+    /* Zero the header and the placeholder capset body. */
+    memset(response, 0, resp_size);
+    response->hdr.type = VIRTIO_GPU_RESP_OK_CAPSET;
+
+    if (request->hdr.flags & VIRTIO_GPU_FLAG_FENCE) {
+        response->hdr.flags = VIRTIO_GPU_FLAG_FENCE;
+        response->hdr.fence_id = request->hdr.fence_id;
+    }
+
+    *plen = (uint32_t) resp_size;
+}
+
+
 /* The software backend supports only CPU-backed 2D scanout resources today.
  * Optional virtio-gpu features for capsets, resource UUIDs, blob resources,
  * virgl/3D contexts, and blob mappings intentionally stay routed to
@@ -1319,8 +1435,8 @@ const struct virtio_gpu_cmd_backend g_virtio_gpu_backend = {
     .transfer_to_host_2d = vgpu_sw_cmd_transfer_to_host_2d_handler,
     .resource_attach_backing = vgpu_sw_cmd_resource_attach_backing_handler,
     .resource_detach_backing = vgpu_sw_cmd_resource_detach_backing_handler,
-    .get_capset_info = VIRTIO_GPU_CMD_UNDEF,
-    .get_capset = VIRTIO_GPU_CMD_UNDEF,
+    .get_capset_info = vgpu_sw_cmd_get_capset_info_handler,
+    .get_capset = vgpu_sw_cmd_get_capset_handler,
     .get_edid = virtio_gpu_get_edid_handler,
     .resource_assign_uuid = VIRTIO_GPU_CMD_UNDEF,
     .resource_create_blob = VIRTIO_GPU_CMD_UNDEF,

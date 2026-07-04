@@ -14,12 +14,13 @@
 #include "virtio-gpu.h"
 #include "virtio.h"
 
-#define VIRTIO_GPU_CMD_TRACE_ENABLED 0
+#define VIRTIO_GPU_CMD_TRACE_ENABLED 1
 
 #define VIRTIO_F_VERSION_1 1
 
 #define VIRTIO_GPU_EVENT_DISPLAY (1 << 0)
 #define VIRTIO_GPU_F_EDID (1 << 1)
+#define VIRTIO_GPU_F_VIRGL (1 << 0)
 #define VIRTIO_GPU_F_CONTEXT_INIT (1 << 4)
 
 #define VIRTIO_GPU_QUEUE_NUM_MAX 1024
@@ -874,8 +875,11 @@ static bool virtio_gpu_reg_read(virtio_gpu_state_t *vgpu,
         /* TODO: Advertise virgl/3D and blob-resource feature bits after the
          * backend supports their command and display paths.
          */
+        // *value = vgpu->DeviceFeaturesSel == 0
+        //              ? VIRTIO_GPU_F_EDID
+        //              : (vgpu->DeviceFeaturesSel == 1 ? VIRTIO_F_VERSION_1 : 0);
         *value = vgpu->DeviceFeaturesSel == 0
-                     ? VIRTIO_GPU_F_EDID
+                     ? (VIRTIO_GPU_F_EDID | VIRTIO_GPU_F_VIRGL)
                      : (vgpu->DeviceFeaturesSel == 1 ? VIRTIO_F_VERSION_1 : 0);
         return true;
     case _(QueueNumMax):
@@ -927,7 +931,7 @@ static bool virtio_gpu_reg_read(virtio_gpu_state_t *vgpu,
             /* TODO: Return virgl capsets after implementing the corresponding
              * 3D command backend. Zero capsets keeps guests on the 2D path.
              */
-            *value = 0;
+            *value = 1;
             return true;
         }
         default:
