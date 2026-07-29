@@ -206,6 +206,23 @@ ifeq ($(call has, VIRTIOINPUT), 1)
     OBJS_EXTRA += virtio-input.o
 endif
 
+# virglrenderer
+ENABLE_VIRGL ?= 1
+ifeq ($(ENABLE_VIRGL),1)
+    ifeq (, $(shell pkg-config --exists virglrenderer && echo 1))
+        $(warning No virglrenderer found. Disabling 3D acceleration.)
+        override ENABLE_VIRGL := 0
+    endif
+endif
+ifeq ($(ENABLE_VIRGL),1)
+    CFLAGS += $(shell pkg-config --cflags virglrenderer)
+    LDFLAGS += $(shell pkg-config --libs virglrenderer)
+    CFLAGS += -DSEMU_HAS_VIRGL=1
+else
+    CFLAGS += -DSEMU_HAS_VIRGL=0
+endif
+
+
 # virtio-gpu
 ENABLE_VIRTIOGPU ?= 1
 $(call set-feature, VIRTIOGPU)
@@ -213,6 +230,9 @@ ifeq ($(call has, VIRTIOGPU), 1)
     OBJS_EXTRA += virtio-gpu.o
     OBJS_EXTRA += virtio-gpu-sw.o
     OBJS_EXTRA += vgpu-display.o
+    ifeq ($(ENABLE_VIRGL),1)
+        OBJS_EXTRA += virtio-gpu-virgl.o
+    endif
 endif
 
 ifneq ($(filter 1,$(call has, VIRTIOGPU) $(call has, VIRTIOINPUT)),)

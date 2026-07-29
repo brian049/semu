@@ -335,6 +335,35 @@ static struct vgpu_display_payload *vgpu_sw_create_window_payload(
     return payload;
 }
 
+bool vgpu_sw_publish_frame(uint32_t scanout_idx,
+                           const struct virtio_gpu_scanout_info *scanout,
+                           uint32_t *pixels,
+                           uint32_t width,
+                           uint32_t height,
+                           uint32_t format)
+{
+    struct vgpu_sw_resource_2d shim = {
+        .format = format,
+        .width = width,
+        .height = height,
+        .stride = width * 4,
+        .bits_per_pixel = 32,
+        .image = pixels,
+        .image_size = (size_t) width * height * 4,
+    };
+
+    if (!vgpu_display_can_publish())
+        return false;
+
+    struct vgpu_display_payload *payload =
+        vgpu_sw_create_window_payload(&shim, scanout, "virgl");
+    if (!payload)
+        return false;
+
+    vgpu_display_publish_primary_set(scanout_idx, payload);
+    return true;
+}
+
 /* Backend Implementation */
 static void vgpu_sw_reset(virtio_gpu_state_t *vgpu)
 {
@@ -560,7 +589,7 @@ static void vgpu_sw_resource_create_2d_handler(virtio_gpu_state_t *vgpu,
         virtio_gpu_set_fail(vgpu);
 }
 
-static void vgpu_sw_cmd_resource_unref_handler(virtio_gpu_state_t *vgpu,
+void vgpu_sw_cmd_resource_unref_handler(virtio_gpu_state_t *vgpu,
                                                struct virtq_desc *vq_desc,
                                                uint32_t *plen)
 {
@@ -623,7 +652,7 @@ static void vgpu_sw_cmd_resource_unref_handler(virtio_gpu_state_t *vgpu,
         virtio_gpu_set_fail(vgpu);
 }
 
-static void vgpu_sw_cmd_set_scanout_handler(virtio_gpu_state_t *vgpu,
+void vgpu_sw_cmd_set_scanout_handler(virtio_gpu_state_t *vgpu,
                                             struct virtq_desc *vq_desc,
                                             uint32_t *plen)
 {
@@ -734,7 +763,7 @@ leave:
         virtio_gpu_set_fail(vgpu);
 }
 
-static void vgpu_sw_cmd_resource_flush_handler(virtio_gpu_state_t *vgpu,
+void vgpu_sw_cmd_resource_flush_handler(virtio_gpu_state_t *vgpu,
                                                struct virtq_desc *vq_desc,
                                                uint32_t *plen)
 {
@@ -917,7 +946,7 @@ static void vgpu_sw_cmd_transfer_to_host_2d_handler(virtio_gpu_state_t *vgpu,
         virtio_gpu_set_fail(vgpu);
 }
 
-static void vgpu_sw_cmd_resource_attach_backing_handler(
+void vgpu_sw_cmd_resource_attach_backing_handler(
     virtio_gpu_state_t *vgpu,
     struct virtq_desc *vq_desc,
     uint32_t *plen)
@@ -1076,7 +1105,7 @@ static void vgpu_sw_cmd_resource_attach_backing_handler(
         virtio_gpu_set_fail(vgpu);
 }
 
-static void vgpu_sw_cmd_resource_detach_backing_handler(
+void vgpu_sw_cmd_resource_detach_backing_handler(
     virtio_gpu_state_t *vgpu,
     struct virtq_desc *vq_desc,
     uint32_t *plen)
@@ -1429,18 +1458,41 @@ const struct virtio_gpu_cmd_backend g_virtio_gpu_backend = {
     .reset = vgpu_sw_reset,
     .get_display_info = virtio_gpu_get_display_info_handler,
     .resource_create_2d = vgpu_sw_resource_create_2d_handler,
+#if SEMU_HAS_VIRGL
+    .resource_unref = virtio_gpu_virgl_resource_unref_handler,
+    .set_scanout = virtio_gpu_virgl_set_scanout_handler,
+    .resource_flush = virtio_gpu_virgl_resource_flush_handler,
+#else
     .resource_unref = vgpu_sw_cmd_resource_unref_handler,
     .set_scanout = vgpu_sw_cmd_set_scanout_handler,
     .resource_flush = vgpu_sw_cmd_resource_flush_handler,
+#endif
     .transfer_to_host_2d = vgpu_sw_cmd_transfer_to_host_2d_handler,
+#if SEMU_HAS_VIRGL
+    .resource_attach_backing = virtio_gpu_virgl_resource_attach_backing_handler,
+    .resource_detach_backing = virtio_gpu_virgl_resource_detach_backing_handler,
+    .get_capset_info = virtio_gpu_virgl_get_capset_info_handler,
+    .get_capset = virtio_gpu_virgl_get_capset_handler,
+#else
     .resource_attach_backing = vgpu_sw_cmd_resource_attach_backing_handler,
     .resource_detach_backing = vgpu_sw_cmd_resource_detach_backing_handler,
     .get_capset_info = vgpu_sw_cmd_get_capset_info_handler,
     .get_capset = vgpu_sw_cmd_get_capset_handler,
+#endif
     .get_edid = virtio_gpu_get_edid_handler,
     .resource_assign_uuid = VIRTIO_GPU_CMD_UNDEF,
     .resource_create_blob = VIRTIO_GPU_CMD_UNDEF,
     .set_scanout_blob = VIRTIO_GPU_CMD_UNDEF,
+#if SEMU_HAS_VIRGL
+    .ctx_create = virtio_gpu_virgl_ctx_create_handler,
+    .ctx_destroy = virtio_gpu_virgl_ctx_destroy_handler,
+    .ctx_attach_resource = virtio_gpu_virgl_ctx_attach_resource_handler,
+    .ctx_detach_resource = virtio_gpu_virgl_ctx_detach_resource_handler,
+    .resource_create_3d = virtio_gpu_virgl_resource_create_3d_handler,
+    .transfer_to_host_3d = virtio_gpu_virgl_transfer_to_host_3d_handler,
+    .transfer_from_host_3d = virtio_gpu_virgl_transfer_from_host_3d_handler,
+    .submit_3d = virtio_gpu_virgl_submit_3d_handler,
+#else
     .ctx_create = VIRTIO_GPU_CMD_UNDEF,
     .ctx_destroy = VIRTIO_GPU_CMD_UNDEF,
     .ctx_attach_resource = VIRTIO_GPU_CMD_UNDEF,
@@ -1449,6 +1501,7 @@ const struct virtio_gpu_cmd_backend g_virtio_gpu_backend = {
     .transfer_to_host_3d = VIRTIO_GPU_CMD_UNDEF,
     .transfer_from_host_3d = VIRTIO_GPU_CMD_UNDEF,
     .submit_3d = VIRTIO_GPU_CMD_UNDEF,
+#endif
     .resource_map_blob = VIRTIO_GPU_CMD_UNDEF,
     .resource_unmap_blob = VIRTIO_GPU_CMD_UNDEF,
     .update_cursor = vgpu_sw_cmd_update_cursor_handler,

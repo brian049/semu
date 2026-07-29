@@ -1950,6 +1950,15 @@ static void *emu_thread_func(void *arg)
 {
     emu_state_t *emu = (emu_state_t *) arg;
 
+#if SEMU_HAS(VIRTIOGPU) && SEMU_HAS_VIRGL
+    /* Initialized here is because virglrenderer context would be
+     * thread local on main thread if virgl_init in virtio-gpu.c. 
+     * virgl_renderer_* must be initialized on emulation thread 
+     * TODO: may be probelms when multiple emu thread (-c 2+).
+     */
+    virtio_gpu_virgl_init(&emu->vgpu);
+#endif
+
     if (emu->debug)
         semu_run_debug(emu);
     else

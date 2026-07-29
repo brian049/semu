@@ -520,6 +520,8 @@ static void window_init_sw(bool headless, uint32_t width, uint32_t height)
         return;
     }
 
+    SDL_SetHint(SDL_HINT_VIDEO_X11_FORCE_EGL, "1");
+
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr,
                 "window_init_sw(): failed to initialize SDL: %s\n"

@@ -400,3 +400,84 @@ void virtio_gpu_get_edid_handler(virtio_gpu_state_t *vgpu,
 void virtio_gpu_cmd_undefined_handler(virtio_gpu_state_t *vgpu,
                                       struct virtq_desc *vq_desc,
                                       uint32_t *plen);
+
+void vgpu_sw_cmd_resource_unref_handler(virtio_gpu_state_t *vgpu,
+                                        struct virtq_desc *vq_desc,
+                                        uint32_t *plen);
+void vgpu_sw_cmd_resource_attach_backing_handler(
+    virtio_gpu_state_t *vgpu,
+    struct virtq_desc *vq_desc,
+    uint32_t *plen);
+void vgpu_sw_cmd_resource_detach_backing_handler(
+    virtio_gpu_state_t *vgpu,
+    struct virtq_desc *vq_desc,
+    uint32_t *plen);
+void vgpu_sw_cmd_set_scanout_handler(virtio_gpu_state_t *vgpu,
+                                            struct virtq_desc *vq_desc,
+                                            uint32_t *plen);
+void vgpu_sw_cmd_resource_flush_handler(virtio_gpu_state_t *vgpu,
+                                               struct virtq_desc *vq_desc,
+                                               uint32_t *plen);
+bool vgpu_sw_publish_frame(uint32_t scanout_idx,
+                           const struct virtio_gpu_scanout_info *scanout,
+                           uint32_t *pixels,
+                           uint32_t width,
+                           uint32_t height,
+                           uint32_t format);
+
+#if SEMU_HAS_VIRGL
+#define VIRTIO_GPU_CAPSET_VIRGL 1
+#define VIRTIO_GPU_CAPSET_VIRGL2 2
+
+bool virtio_gpu_virgl_init(virtio_gpu_state_t *vgpu);
+void virtio_gpu_virgl_cleanup(virtio_gpu_state_t *vgpu);
+void virtio_gpu_virgl_get_capset_info_handler(virtio_gpu_state_t *vgpu,
+                                              struct virtq_desc *vq_desc,
+                                              uint32_t *plen);
+void virtio_gpu_virgl_get_capset_handler(virtio_gpu_state_t *vgpu,
+                                         struct virtq_desc *vq_desc,
+                                         uint32_t *plen);
+
+/* Virglrenderer backend handlers */
+void virtio_gpu_virgl_ctx_create_handler(virtio_gpu_state_t *vgpu,
+                                         struct virtq_desc *vq_desc,
+                                         uint32_t *plen);
+void virtio_gpu_virgl_ctx_destroy_handler(virtio_gpu_state_t *vgpu,
+                                          struct virtq_desc *vq_desc,
+                                          uint32_t *plen);
+void virtio_gpu_virgl_ctx_attach_resource_handler(virtio_gpu_state_t *vgpu,
+                                                  struct virtq_desc *vq_desc,
+                                                  uint32_t *plen);
+void virtio_gpu_virgl_ctx_detach_resource_handler(virtio_gpu_state_t *vgpu,
+                                                  struct virtq_desc *vq_desc,
+                                                  uint32_t *plen);
+void virtio_gpu_virgl_resource_create_3d_handler(virtio_gpu_state_t *vgpu,
+                                                 struct virtq_desc *vq_desc,
+                                                 uint32_t *plen);
+void virtio_gpu_virgl_resource_unref_handler(virtio_gpu_state_t *vgpu,
+                                             struct virtq_desc *vq_desc,
+                                             uint32_t *plen);
+void virtio_gpu_virgl_resource_attach_backing_handler(
+    virtio_gpu_state_t *vgpu,
+    struct virtq_desc *vq_desc,
+    uint32_t *plen);
+void virtio_gpu_virgl_resource_detach_backing_handler(
+    virtio_gpu_state_t *vgpu,
+    struct virtq_desc *vq_desc,
+    uint32_t *plen);
+void virtio_gpu_virgl_transfer_to_host_3d_handler(virtio_gpu_state_t *vgpu,
+                                                  struct virtq_desc *vq_desc,
+                                                  uint32_t *plen);
+void virtio_gpu_virgl_transfer_from_host_3d_handler(virtio_gpu_state_t *vgpu,
+                                                    struct virtq_desc *vq_desc,
+                                                    uint32_t *plen);
+void virtio_gpu_virgl_submit_3d_handler(virtio_gpu_state_t *vgpu,
+                                        struct virtq_desc *vq_desc,
+                                        uint32_t *plen);
+void virtio_gpu_virgl_set_scanout_handler(virtio_gpu_state_t *vgpu,
+                                          struct virtq_desc *vq_desc,
+                                          uint32_t *plen);
+void virtio_gpu_virgl_resource_flush_handler(virtio_gpu_state_t *vgpu,
+                                             struct virtq_desc *vq_desc,
+                                             uint32_t *plen);
+#endif
