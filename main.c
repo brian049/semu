@@ -1953,8 +1953,13 @@ static void *emu_thread_func(void *arg)
 #if SEMU_HAS(VIRTIOGPU) && SEMU_HAS_VIRGL
     /* Initialized here is because virglrenderer context would be
      * thread local on main thread if virgl_init in virtio-gpu.c. 
-     * virgl_renderer_* must be initialized on emulation thread 
-     * TODO: may be probelms when multiple emu thread (-c 2+).
+     * 
+     * This runs before 'semu_run()' boots the guest, so
+     * the init result is known before the guest driver ever reads
+     * 'DeviceFeatures'. The device refuses to advertise 
+     * 'VIRTIO_GPU_F_VIRGL' and presents 2D path.
+     *
+     * TODO: revisit when multiple emulation threads exist (-c 2+).
      */
     virtio_gpu_virgl_init(&emu->vgpu);
 #endif

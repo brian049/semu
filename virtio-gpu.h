@@ -431,6 +431,9 @@ bool vgpu_sw_publish_frame(uint32_t scanout_idx,
 
 bool virtio_gpu_virgl_init(virtio_gpu_state_t *vgpu);
 void virtio_gpu_virgl_cleanup(virtio_gpu_state_t *vgpu);
+
+/* True if 'virgl_renderer_init()' succeeded. */
+bool virtio_gpu_virgl_is_ready(void);
 void virtio_gpu_virgl_get_capset_info_handler(virtio_gpu_state_t *vgpu,
                                               struct virtq_desc *vq_desc,
                                               uint32_t *plen);
@@ -480,4 +483,9 @@ void virtio_gpu_virgl_set_scanout_handler(virtio_gpu_state_t *vgpu,
 void virtio_gpu_virgl_resource_flush_handler(virtio_gpu_state_t *vgpu,
                                              struct virtq_desc *vq_desc,
                                              uint32_t *plen);
+#else
+static inline bool virtio_gpu_virgl_is_ready(void)
+{
+    return false;
+}
 #endif

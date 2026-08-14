@@ -57,6 +57,14 @@ void virtio_gpu_virgl_cleanup(virtio_gpu_state_t *vgpu)
     virgl_initialized = false;
 }
 
+/* This is for feature negotiation. 'VIRTIO_GPU_F_VIRGL' is true once the
+ * guest driver sees it.
+ */
+bool virtio_gpu_virgl_is_ready(void)
+{
+    return virgl_initialized;
+}
+
 /* Report the real VIRGL capset advertised by virglrenderer, replacing the
  * hardcoded placeholder used during negotiation bring-up.
  */

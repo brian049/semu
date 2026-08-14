@@ -1330,6 +1330,7 @@ static void vgpu_sw_cmd_move_cursor_handler(virtio_gpu_state_t *vgpu,
     *plen = 0;
 }
 
+#if !SEMU_HAS_VIRGL
 #define VGPU_SW_VIRGL_CAPSET_ID 1        /* VIRTIO_GPU_CAPSET_VIRGL */
 #define VGPU_SW_VIRGL_CAPSET_MAX_VERSION 1
 #define VGPU_SW_VIRGL_CAPSET_MAX_SIZE 308 /* sizeof(struct virgl_caps_v1) */
@@ -1444,6 +1445,7 @@ static void vgpu_sw_cmd_get_capset_handler(virtio_gpu_state_t *vgpu,
 
     *plen = (uint32_t) resp_size;
 }
+#endif /* !SEMU_HAS_VIRGL */
 
 
 /* The software backend supports only CPU-backed 2D scanout resources today.
